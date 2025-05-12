@@ -1,41 +1,84 @@
-const express = require("express")
-const app = express()
-const mysql = require("mysql2/promise")
+const express = require("express");
+const app = express();
+const mysql = require("mysql2/promise");
 
 // parse application/json, för att hantera att man POSTar med JSON
-const bodyParser = require("body-parser")
+const bodyParser = require("body-parser");
 
 // Inställningar av servern.
-app.use(bodyParser.urlencoded({ extended: false }))
-app.use(bodyParser.json())
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
-async function getDBConnnection() {
+async function getDBConnection() {
   // Här skapas ett databaskopplings-objekt med inställningar för att ansluta till servern och databasen.
   return await mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "",
-    database: "mydb",
-  })
+    database: "users",
+  });
 }
 
 app.get("/", (req, res) => {
-  res.send(`<h1>Doumentation EXEMPEL</h1>
-  <ul><li> GET /users</li></ul>`)
-})
+  console.log("Root route accessed");
+  res.send(`
+    <h1>API Dokumentation</h1>
+    <ul>
+      <li>GET /users - Hämtar alla användare</li>
+      <li>GET /users/:id - Hämtar en användare baserat på ID</li>
+      <li>POST /users - Skapar en ny användare</li>
+    </ul>
+  `);
+});
+
+// Hämta alla användare
+app.get("/users", async (req, res) => {
+  try {
+    const connection = await getDBConnection();
+    const [rows] = await connection.execute("SELECT * FROM users");
+    res.status(200).json(rows);
+  } catch (error) {
+    res.status(500).json({ error: "Något gick fel" });
+  }
+});
+
+// Hämta en användare baserat på ID
+app.get("/users/:id", async (req, res) => {
+  const { id } = req.params;
+  try {
+    const connection = await getDBConnection();
+    const [rows] = await connection.execute(
+      "SELECT * FROM users WHERE id = ?",
+      [id]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Användare hittades inte" });
+    }
+    res.status(200).json(rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: "Något gick fel" });
+  }
+});
 
 /*
   app.post() hanterar en http request med POST-metoden.
 */
-app.post("/users", function (req, res) {
-  // Data som postats till routen ligger i body-attributet på request-objektet.
-  console.log(req.body)
+// Skapa en ny användare
+app.post("/users", async (req, res) => {
+  const { name, email } = req.body;
+  try {
+    const connection = await getDBConnection();
+    const [result] = await connection.execute(
+      "INSERT INTO users (name, email) VALUES (?, ?)",
+      [name, email]
+    );
+    res.status(201).json({ id: result.insertId, name, email });
+  } catch (error) {
+    res.status(500).json({ error: "Något gick fel" });
+  }
+});
 
-  // POST ska skapa något så här kommer det behövas en INSERT
-  let sql = `INSERT INTO ...`
-})
-
-const port = 3000
+const port = 8000;
 app.listen(port, () => {
-  console.log(`Server listening on http://localhost:${port}`)
-})
+  console.log(`Server listening on http://localhost:${port}`);
+});
