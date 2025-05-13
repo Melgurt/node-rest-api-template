@@ -65,15 +65,23 @@ app.get("/users/:id", async (req, res) => {
 */
 // Skapa en ny användare
 app.post("/users", async (req, res) => {
-  const { name, email } = req.body;
+  const { username, password, name, email } = req.body;
+  // Kontrollera att alla nödvändiga fält finns i förfrågan
+  if (!username || !password || !name || !email) {
+    return res.status(400).json({
+      error: "Alla fält (username, password, name, email) måste anges",
+    });
+  }
+
   try {
     const connection = await getDBConnection();
     const [result] = await connection.execute(
-      "INSERT INTO users (name, email) VALUES (?, ?)",
-      [name, email]
+      "INSERT INTO users (username, password, name, email) VALUES (?, ?, ?, ?)",
+      [username, password, name, email]
     );
-    res.status(201).json({ id: result.insertId, name, email });
+    res.status(201).json({ id: result.insertId, username, name, email });
   } catch (error) {
+    console.error("Error inserting user:", error);
     res.status(500).json({ error: "Något gick fel" });
   }
 });
